@@ -1,36 +1,36 @@
 @echo off
-chcp 65001 >nul
 cls
 
 echo ======================================================
-echo           音频下载转录工具 - 正在启动...
+echo           Audio Transcriber - Starting...
 echo ======================================================
+echo.
 
-:: 再次检查环境完整性
-if not exist ".\venv\Scripts\activate.bat" (
-    echo [错误] 环境不完整。请先运行 [install.bat]！
-    pause
-    exit /b
-)
+:: 1. Check Virtual Env
+if exist ".\venv\Scripts\activate.bat" goto :CHECK_FFMPEG
+echo [Error] venv not found. Please run [install.bat] first!
+pause
+exit /b
 
-:: 检查 ffmpeg 是否已在 PATH 中
+:CHECK_FFMPEG
+:: 2. Check ffmpeg
 ffmpeg -version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [致命错误] 找不到音频处理引擎 ffmpeg。
-    echo 请确保：
-    echo 1. 已运行 install.bat 尝试自动安装
-    echo 2. 如果自动安装失败，请手动安装 ffmpeg 并加入系统 PATH
-    pause
-    exit /b
-)
+if %errorlevel% equ 0 goto :RUN_APP
+echo [Fatal Error] ffmpeg not found.
+echo Please run install.bat or install ffmpeg manually and add to PATH.
+pause
+exit /b
 
-:: 进入虚拟环境并运行
-echo 正在运行脚本...
+:RUN_APP
+:: 3. Run
+echo [Status] Starting transcription script...
+echo ------------------------------------------------------
 call .\venv\Scripts\activate
 python transcribe_audio.py
 
 echo.
 echo ======================================================
-echo 转录任务完成。
+echo Task Finished.
 echo ======================================================
 pause
+exit /b

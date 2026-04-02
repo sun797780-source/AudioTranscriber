@@ -1,64 +1,90 @@
 @echo off
-setlocal enabledeladedexpansion
-chcp 65001 >nul
+setlocal enabledelayedexpansion
 cls
 
 echo ======================================================
-echo           音频下载转录工具 - 环境自动注入器
+echo           Audio Transcriber - Auto Installer
 echo ======================================================
+echo.
 
-:: 1. 检查 Python
-echo [1/4] 正在检查 Python 环境...
+:: 1. Check Python
+echo [1/4] Checking Python environment...
 python --version >nul 2>&1
+if %errorlevel% neq 0 goto :INSTALL_PYTHON
+echo [Status] Python is installed.
+goto :CHECK_FFMPEG
+
+:INSTALL_PYTHON
+echo [Hint] Python not found. Attempting to install via winget...
+winget install -e --id Python.Python.3.10 --accept-package-agreements --accept-source-agreements
 if %errorlevel% neq 0 (
-    echo [警告] 未检测到 Python！
-    echo 正在尝试通过 winget 自动安装 Python 3.10...
-    winget install -e --id Python.Python.3.10 --accept-package-agreements --accept-source-agreements
+    echo [Error] Auto-install failed.
+    echo Please install Python 3.10+ manually from https://www.python.org/
+    echo NOTE: Make sure to check "Add Python to PATH" during installation!
+    pause
+    exit /b
+)
+echo [Success] Python installation started. Restart this script after it finishes.
+pause
+exit /b
+
+:CHECK_FFMPEG
+echo [2/4] Checking ffmpeg (Audio Engine)...
+ffmpeg -version >nul 2>&1
+if %errorlevel% neq 0 goto :INSTALL_FFMPEG
+echo [Status] ffmpeg is ready.
+goto :CREATE_VIRTUAL_ENV
+
+:INSTALL_FFMPEG
+echo [Hint] ffmpeg not found. Attempting to install...
+winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
+if %errorlevel% neq 0 (
+    echo [Warning] ffmpeg auto-install failed. 
+    echo If the script fails later, please install ffmpeg manually.
+) else (
+    echo [Success] ffmpeg installed. Please restart the window if still not found.
+)
+goto :CREATE_VIRTUAL_ENV
+
+:CREATE_VIRTUAL_ENV
+echo [3/4] Preparing Python Virtual Environment (venv)...
+if exist "venv" (
+    echo [Status] venv already exists.
+) else (
+    python -m venv venv
     if %errorlevel% neq 0 (
-        echo [错误] 自动安装失败。
-        echo 请手动访问 https://www.python.org/ 下载并安装。
-        echo 注意：安装时务必勾选 "Add Python to PATH"！！
+        echo [Error] Failed to create venv. Check your Python installation.
         pause
         exit /b
     )
-    echo [成功] Python 安装任务已启动，请在安装完成后重新运行本脚本。
+    echo [Success] venv created.
+)
+
+:: 4. Install Dependencies
+echo [4/4] Downloading required libraries...
+echo ------------------------------------------------------
+if not exist "requirements.txt" (
+    echo [Error] requirements.txt not found!
     pause
     exit /b
 )
 
-:: 2. 检查 ffmpeg (Whisper 核心依赖)
-echo [2/4] 正在检查 ffmpeg (音频处理引擎)...
-ffmpeg -version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [提示] 未检测到 ffmpeg，正在尝试自动安装...
-    winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
-    if %errorlevel% neq 0 (
-        echo [警告] ffmpeg 自动安装失败。这通常是因为权限或 winget 版本问题。
-        echo 请稍后手动安装 ffmpeg，否则脚本将无法提取音频。
-    ) else (
-        echo [成功] ffmpeg 已尝试安装。如果仍提示找不到，请重新打开此窗口。
-    )
-) else (
-    echo [状态] ffmpeg 已就绪。
-)
-
-:: 3. 创建虚拟环境
-echo [3/4] 正在创建隔离的 Python 运行环境 (venv)...
-if not exist "venv" (
-    python -m venv venv
-)
-
-:: 4. 安装依赖库
-echo [4/4] 正在连接服务器下载依赖库 (这取决于你的网速)...
-echo ------------------------------------------------------
+:: Activate and Update pip (using Tsinghua mirror for speed)
 call .\venv\Scripts\activate
 python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
+if %errorlevel% neq 0 (
+    echo.
+    echo [Tip] Installation might have partial issues. 
+    echo Try closing your VPN/Proxy and run again if it fails.
+)
+
 echo.
 echo ======================================================
-echo [恭喜] 安装所有步骤已尝试完成！
+echo [Congrats] All steps completed!
 echo.
-echo 如果没报错，现在你可以双击 [run.bat] 开始使用了。
+echo You can now double-click [run.bat] to start.
 echo ======================================================
 pause
+exit /b
